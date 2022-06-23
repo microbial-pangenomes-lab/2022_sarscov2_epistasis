@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 tree=$1
 mmsa=$2
@@ -15,16 +15,18 @@ rm -rf $mmsadir || true
 # Unzip GISAID tree and Multisequence Alignment
 unzip $tree
 tar -xvf $mmsa
-#### conda activate ncov ####
+
+# generate list of public GISAID IDs
+curl --silent -L https://github.com/CDCgov/SARS-CoV-2_Sequencing/raw/master/files/epiToPublic.tsv.gz | gzip -d | awk '{print $1}' > data/public_seqs.txt
 
 # If indicated in command line (3rd argument) select random n sequences from filtered gisaid dataset with public sequences
 if [ $3 > 0 ]; then
-  python3 src/public_seq_filter.py $treedir/metadata.csv -n $subset > tree_subset1.txt
-  xzcat $mmsadir/2022-02-03_masked.fa.xz | python3 src/prefilter.py tree_subset1.txt > prefiltered.fasta
-  else
+  python3 src/public_seq_filter.py $treedir/metadata.csv data/public_seqs.txt -n $subset > tree_subset.txt
+  xzcat $mmsadir/*_masked.fa.xz | python3 src/prefilter.py tree_subset.txt > prefiltered.fasta
+else
 # prefilter the sequences to keep only those in the metadata file
-    python3 src/public_seq_filter.py $treedir/metadata.csv -total > tree_subset2.txt
-    xzcat $mmsadir/2022-02-03_masked.fa.xz | python3 src/prefilter.py tree_subset2.txt > prefiltered.fasta
+  python3 src/public_seq_filter.py $treedir/metadata.csv data/public_seqs.txt > tree_subset.txt
+  xzcat $mmsadir/*_masked.fa.xz | python3 src/prefilter.py tree_subset.txt > prefiltered.fasta
 fi
 
 # only keep those positions with starting from 266 to 29768
@@ -75,4 +77,4 @@ rm -rf $treedir
 rm -rf $mmsadir
 
 # Plot and tables from Gwes results + NCBI public SNPs dataset and outbreak.info data
-python3 src/plot_gwes_results.py
+#python3 src/plot_gwes_results.py
