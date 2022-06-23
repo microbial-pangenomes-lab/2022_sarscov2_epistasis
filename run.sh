@@ -39,8 +39,9 @@ xzcat prefiltered.fasta.xz | python src/filter_single.py filtered_dca.fasta.pos 
 xzcat prefiltered.fasta.xz | pypy3 src/post_filter.py filtered_dca.fasta.names > filtered_dca.fasta
 
 # cluster all deduplicated sequences at a defined similarity threshold
-# mmseqs easy-linclust filtered_dca.fasta clusters /tmp/mmseqs2 --split-memory-limit 64G --threads 18 --kmer-per-seq-scale 0.3 -c 0.95 --min-seq-id 0.9996
-python3 src/run_mmseqs.py
+# should be ~10 SNPs er sequence 
+seqs easy-linclust filtered_dca.fasta clusters /tmp/mmseqs2 --split-memory-limit 64G --threads 24 --kmer-per-seq-scale 0.3 -c 0.95 --min-seq-id 0.9989
+
 #rm filtered_dca.fasta.xz || true
 mv clusters_cluster.tsv cluster.tsv
 xz -T 18 filtered_dca.fasta
