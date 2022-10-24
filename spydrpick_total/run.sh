@@ -19,6 +19,7 @@ xz -T 18 $mmsadir/*.fa
 
 
 # generate list of public GISAID IDs
+mkdir -p data
 curl --silent -L https://github.com/CDCgov/SARS-CoV-2_Sequencing/raw/master/files/epiToPublic.tsv.gz | gzip -d | awk '{print $1}' > data/public_seqs.txt
 # Extract the the public sequences from the total tree
 python3 src/public_seq_filter.py $treedir/metadata.csv data/public_seqs.txt > data/tree_subset.txt
@@ -43,13 +44,13 @@ python3 src/extract_tree.py --tree $tree --name 'filtered_dca.fasta'
 
 # Use BioPython to calculate weights based on pruned trees (relative sequence distances) for each subset
 python3 src/get_weights.py -s filtered_dca.fasta.names --tree filtered_dca.fasta.tree > filtered_dca_tree.fasta.weights
-# Get weights based on tree distances of each sequence
-#  python3 src/get_weights.py -s /filtered_dca.fasta.names --tree /${name}.tree > /filtered_dca_tree.fasta.weights
-#python subset_workflow/spydrpick_alt.py -a subset_workflow/data/subsets/new_subset_total_out/2022-06/filtered.npz -p subset_work$
+
 # Get weights based on time points
 python3 src/get_time_weight.py ${treedir}/metadata.csv filtered_dca.fasta.names 2022 06 30 > filtered_dca_time.fasta.weights
 # Combine the tree and time inferred weights using array product
 python src/combine_weights.py product filtered_dca_tree.fasta.weights filtered_dca_time.fasta.weights > product_weights.txt
+
+# Run spydrpick once to calculate mi treshold
 python src/spydrpick_alt.py -a filtered.npz -p filtered_dca.fasta.pos -w product_weights.txt > filtered.mi_t
 
 # Create mi folder if it doesn't exist yet
@@ -68,7 +69,6 @@ zcat mi/*.tsv.gz | sort -n | uniq | python src/spydrpick_tukey_4_values.py > mi_
 # Extract only outliers to perform final filter with aracne
 lower_t=$(cat mi_tukey4.txt | head -1)
 zcat mi/*.gz | sort -n | uniq | awk -F '\t' -v t="$lower_t" '$3 >= t {print $0}' > mi_all_prefilter.txt
-
 # Run aracne
 cat mi_all_prefilter.txt | sort -n | uniq | python src/spydrpick_filter.py --cores 1 --outliers mi_tukey4.txt > tmp.txt
 cat tmp.txt | sort -n | uniq | gzip > mi_all.tsv.gz
