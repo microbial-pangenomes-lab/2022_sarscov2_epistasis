@@ -1,0 +1,23 @@
+This pipeline is able to run spydrpick algoritm on a very big dataset represented by a GISAID full alignment of SARS-CoV2 
+sequences from late 2019 to June 2022. The pipeline is made by several steps implemented in different python scripts.
+The analysis is made in 2 configurations: 
+- On the total dataset (> 4 milion sequences)
+- On 27 month labelled subsets (1000 randomly chosen sequences for each month), 
+  providing a time-scale analysis of the epistatic interactions in SARS-COV2.
+
+In this version the mmseqs2 sequence clustering is replaced by a more consistent double weighting based on:
+1. Time: SNPs which are found in older sequences (we assigned each sequence to months bins) will have a lower weight compared
+   to recent found SNPs, following a exponential decay equation (@ ref to manuscript)
+2. Tree distance: We used GISAID provided tree to calculate the distances of each sequence (leaf) from the root, and weight
+   the leaves proportionally.
+
+Scripts used for this analysis:
+- public_seqs_filter.py : Extract the public sequences from the GISAID total multialignment
+- make_pos.py : list only the relevant positions in which the analysis will be computed. According to reference gene
+- prefilter.py : extract only the sequences of the multialignment that are present in the GISAID tree (higher quality)
+- filter_single.py : deduplicate sequences of the filtered multialignment and converts it into a numpy matrix for next
+  computations.
+- spydrpick_alt.py : run spydrpick on all positions
+- spydrpick_tukey.py : find tukey outliers 
+- spydrpick_filter.py : Use ARACNE algoritm to filter out indirect interactions
+- calc_distances.py : compute distance between positions and add to final table/output
