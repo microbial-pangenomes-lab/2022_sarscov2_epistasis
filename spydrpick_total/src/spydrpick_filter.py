@@ -129,8 +129,10 @@ def main():
                     outl = i
                 else:
                     break
-
-            print(f'{a}\t{b}\t{m}\t{outl}')
+            if int(outl) == 0:
+                pass
+            else:
+                print(f'{a}\t{b}\t{m}\t{outl}')
     else:
         while True:
             ret = pool.starmap(aracne, itertools.islice(iter_f, chunk * cores))
@@ -148,7 +150,9 @@ def main():
                         outl = i
                     else:
                         break
-
+            if int(outl) == 0:
+                pass
+            else:
                 print(f'{a}\t{b}\t{m}\t{outl}')
 
 

@@ -1,6 +1,6 @@
 import sys
 
-keep = {l.rstrip()
+keep = {l.rstrip().split(',')[0]
         for l in open(sys.argv[1])}
 
 sys.stderr.write(str(len(keep)))
@@ -15,8 +15,8 @@ for l in sys.stdin:
         if not seqs % 100:
             sys.stderr.write(f'Prefilter: {seqs} {kept}\n')
         if sid[1:] in keep:
-            #print(sid)
-            #print(''.join(s))
+            print(sid)
+            print(''.join(s))
             kept += 1
         s = []
         sid = l.rstrip()
@@ -27,8 +27,8 @@ for l in sys.stdin:
     elif sid[1:] in keep or len(s) == 0:
         s.append(l.rstrip())
 if sid[1:] in keep:
-    #print(sid)
-    #print(''.join(s))
+    print(sid)
+    print(''.join(s))
     kept += 1
 seqs += 1
 sys.stderr.write(f'Prefilter: {seqs} {kept}\n')

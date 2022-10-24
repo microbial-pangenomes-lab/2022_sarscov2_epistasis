@@ -15,7 +15,7 @@ def main():
                     C =l.rstrip().split('\t')[2]
                     D = l.rstrip().split('\t')[3]
                     absdiff = abs(int(A) - int(B))
-                    line = ' '.join([A,B,str(absdiff),D,C]) + ' \n'
+                    line = ' '.join([A,B,str(absdiff),D,C]) + '\n'
                     o.write(line)
 
 if __name__ == '__main__':
