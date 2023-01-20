@@ -16,11 +16,11 @@ for i in range(4):
         month = '12'
         year_month = year + '-' + month
         list_dates.append(year_month)
-    elif year == '2022':
-        for i in range(1,7):
-            month = '0' + str(i)
-            year_month= year + '-' + month
-            list_dates.append(year_month)
+#    elif year == '2022':
+#        for i in range(1,7):
+#            month = '0' + str(i)
+#            year_month= year + '-' + month
+#            list_dates.append(year_month)
     else:
         for i in range(1,13):
             if i < 10:
