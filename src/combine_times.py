@@ -29,10 +29,9 @@ if __name__ == '__main__':
     for i in range(len(inputs)):
         fname = inputs[i]
         sys.stderr.write(f'Writing {fname}\n')
-        f = open(f'{args.output}/{fname}', 'w')
+        cmd = 'cat'
         for j in range(i+1):
-            for l in open(f'{args.input}/{inputs[j]}'):
-                f.write(l)
-                if not l.endswith('\n'):
-                    f.write('\n')
-        f.close()
+            cmd += ' '
+            cmd += f'{args.input}/{inputs[j]}'
+        cmd += f' > {args.output}/{fname}'
+        os.system(cmd)
