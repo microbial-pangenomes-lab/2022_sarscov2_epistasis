@@ -44,7 +44,7 @@ if __name__ == '__main__':
                 a[len(unique)] = b
                 unique.add(h)
                 print(sid)
-            s = '' 
+            s = ''
             sid = l.rstrip()[1:]
             seqs += 1
         elif l.startswith('>'):

@@ -15,14 +15,14 @@ def read_positions(pos_filename):
     sys.stderr.write(f'Load: Positions\n')
     pos = np.loadtxt(pos_filename, dtype=np.uint,
                      delimiter=",", comments=None)
-    
-    return pos 
+
+    return pos
 
 
 def read_weights(weights_file):
     sys.stderr.write('Load: Weights\n')
     w = np.loadtxt(weights_file,
-                   delimiter="\n", comments=None)
+                   delimiter=' ', comments=None)
 
     return w
 
@@ -59,7 +59,7 @@ def compute_mi(m, pos_n, weights, nstates=5):
             sys.stderr.write(f'MI: compute joint probabilities ({x}, {y})\n')
             pj[x][y] = np.empty((pos_n.shape[0], m.shape[0]))
             joint_probabilities(pj[x][y], m, x, y, weights, pos_n, n_eff, r_x_r_y)
-    
+
     sys.stderr.write(f'MI: compute marginal probabilities\n')
     ph = {}
     pi = {}
@@ -135,7 +135,7 @@ def get_options():
 
 
 def main(options):
-    pos = read_positions(options.positions)    
+    pos = read_positions(options.positions)
     aln = read_binary(options.alignment)
 
     positions, samples = aln.shape
@@ -144,7 +144,7 @@ def main(options):
         weights = read_weights(options.weights)
     else:
         weights = np.ones(samples)
-    
+
     if options.threshold is None:
         r_positions = min(SAMPLES, positions)
         sys.stderr.write(f'Computing MI threshold on {r_positions} sample positions\n')
@@ -166,14 +166,14 @@ def main(options):
             rows = np.arange(options.start, options.start + options.window)
         mi = compute_mi(aln, rows, weights,
                         nstates=options.states)
-        
+
         np.fill_diagonal(mi, options.threshold - 1)
 
         hitA, hitB = np.where(mi > options.threshold)
         mi = mi[hitA, hitB]
         hitA += options.start
         keep = hitA!=hitB
-        
+
         hits = set()
         for a, b, v in zip(hitA[keep], hitB[keep], mi[keep]):
             a = pos[a]

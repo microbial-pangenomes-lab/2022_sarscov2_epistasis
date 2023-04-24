@@ -1,0 +1,13 @@
+name: epistasis
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+- python>=3.6
+- pandas
+- numpy
+- numba
+- treeswift
+- dendropy
+- tqdm

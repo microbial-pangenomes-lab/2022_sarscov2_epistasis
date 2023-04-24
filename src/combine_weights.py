@@ -1,6 +1,10 @@
+#!/usr/bin/env python
+
+
 import argparse
 import pandas as pd
 import numpy as np
+
 
 def get_options():
     description = 'Combine weights'
@@ -19,7 +23,8 @@ if __name__ == "__main__":
     # read all the weights
     weights = []
     for infile in options.weight:
-        w = pd.read_csv(infile, header=None)[0].values
+        w = np.loadtxt(infile,
+                       delimiter=' ', comments=None)
         weights.append(w)
 
     if options.method == 'product':

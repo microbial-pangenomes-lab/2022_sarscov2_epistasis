@@ -6,7 +6,7 @@ import gzip
 
 # take file
 def main():
-    with open('out_spydrpick.txt', 'wt') as o:
+    with open(sys.argv[2], 'wt') as o:
         with gzip.open(sys.argv[1], 'rt') as f:
             for l in f.readlines():
                 if not l.startswith('pos'):

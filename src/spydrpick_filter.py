@@ -41,8 +41,8 @@ def aracne(a, b, m):
         if (b, c) not in d: continue
         if (m < d[(a, c)]) and (m < d[(b, c)]):
             bad = True
-            return None 
-    
+            return None
+
     return a, b, m
 
 
@@ -82,7 +82,7 @@ def get_options():
                         help='How many positions to run ARACNE for at any '
                              'given time (affects peak memory usage, '
                              'default: %(default)d)')
-    
+
     return parser.parse_args()
 
 

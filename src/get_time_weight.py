@@ -82,5 +82,11 @@ if __name__ == "__main__":
     # apply Hill function to derive weigth
     m['weight'] = hill_func(m['days'], 0, 1, options.c, options.d)
 
+    first = True
     for w in m['weight'].values:
-        print(w)
+        if first:
+            first = False
+            sys.stdout.write(str(w))
+            continue
+        sys.stdout.write(' ')
+        sys.stdout.write(str(w))
