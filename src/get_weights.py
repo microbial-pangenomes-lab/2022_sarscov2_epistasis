@@ -3,7 +3,6 @@ sys.setrecursionlimit(99999)
 import numpy as np
 import os
 import argparse
-__version__ = '0.0.1'
 import dendropy as dpy
 
 def read_samples(samples_filename):
@@ -72,10 +71,6 @@ def get_options():
         help=("phylogeny in newick format for weigting samples to" +
               " control for population structure"))
 
-    parser.add_argument('--version',
-                        action='version',
-                        version='%(prog)s ' + __version__)
-
     args = parser.parse_args()
 
     return (args)
@@ -88,11 +83,15 @@ def main():
 
     # get weights
     weights = get_weights_phylogeny(args.tree_file, sample_names)
-    
-    for w in weights:
-        print(w)
 
-    return
+    first = True
+    for w in weights:
+        if first:
+            first = False
+            sys.stdout.write(str(w))
+            continue
+        sys.stdout.write(' ')
+        sys.stdout.write(str(w))
 
 
 if __name__ == '__main__':
