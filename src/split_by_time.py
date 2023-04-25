@@ -54,7 +54,9 @@ if __name__ == '__main__':
              for x in xx}
 
     files = {x: open(f'{args.output}/{x}.fasta', 'w')
-             for x in ids}
+             for x in ids
+             if not os.path.exists(f'{args.output}/{x}.fasta.xz')
+             or not os.path.exists(f'{args.output}/{x}.fasta')}
     seqs = 0
     s = []
     sid = ''

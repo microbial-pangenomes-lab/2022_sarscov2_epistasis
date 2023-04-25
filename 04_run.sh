@@ -10,6 +10,8 @@ time=$5
 
 treedir=$(basename $tree .zip)
 
+mkdir -p $wdir
+
 # Conserving only positions from 266 to 29768
 python3 src/make_pos.py > $wdir/filtered_dca.fasta.pos
 
@@ -39,9 +41,8 @@ mkdir -p $wdir/mi
 # Create multiple jobs and run spydrpick for real with chunks of 1000 nucleotides
 for s in $(seq 0 1000 $(cat $wdir/filtered_dca.fasta.pos | tr ',' '\n' | wc -l));
 do
-  echo "python src/spydrpick_alt.py -a $wdir/filtered.npz -p $wdir/filtered_dca.fasta.pos -w $wdir/product_weights.txt --threshold $(cat $wdir/filtered.mi_t) --start $s --cores $cores | gzip > $wdir/mi/$s.tsv.gz"
-done > $wdir/mi_jobs.txt
-parallel --jobs 1 --progress < $wdir/mi_jobs.txt
+  python src/spydrpick_alt.py -a $wdir/filtered.npz -p $wdir/filtered_dca.fasta.pos -w $wdir/product_weights.txt --threshold $(cat $wdir/filtered.mi_t) --start $s --cores $cores | gzip > $wdir/mi/$s.tsv.gz
+done
 
 # Calculate tukey outliers
 zcat $wdir/mi/*.tsv.gz | sort -n | uniq | python src/spydrpick_tukey_4_values.py > $wdir/mi_tukey4.txt

@@ -40,36 +40,9 @@ if __name__ == '__main__':
     # restrict to desired last time point
     i = inputs.index(f'{args.target}.fasta.xz')
     inputs = inputs[:i+1]
-    all_ids = set()
-    for i, fname in enumerate(inputs):
-        sys.stderr.write(f'Reading IDs from {fname}\n')
-        ids = read_fasta(f'{args.input}/{fname}')
-        for x in ids:
-            all_ids.add(x)
 
-    f = open(f'{args.output}/{args.target}.fasta', 'w')
-    seqs = 0
-    s = []
-    sid = ''
-    kept = 0
-    # Loop on all data
-    for l in sys.stdin:
-        if l.startswith('>') and len(s) != 0:
-            if not seqs % 1000:
-                sys.stderr.write(f'Split: {seqs} {kept}\n')
-            seqs += 1
-            if sid[1:] in all_ids:
-                f.write(f'{sid}\n{"".join(s)}\n')
-                kept += 1
-                s = []
-            sid = l.rstrip()
-        elif l.startswith('>'):
-            sid = l.rstrip()
-            continue
-        else:
-            s.append(l.rstrip())
-    if sid[1:] in all_ids and len(s) != 0:
-        f.write(f'{sid}\n{"".join(s)}\n')
-        kept += 1
-    sys.stderr.write(f'Split: {seqs} {kept}\n')
-    f.close()
+    cmd = 'cat'
+    for f in inputs:
+        cmd += f' {args.input}/{f}'
+    cmd += f' > {args.output}/{args.target}.fasta.xz'
+    os.system(cmd)
