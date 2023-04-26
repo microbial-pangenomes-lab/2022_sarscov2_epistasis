@@ -60,6 +60,6 @@ if __name__ == '__main__':
         unique.add(h)
         print(sid)
     seqs += 1
-    sys.stderr.write(f'Filter and transform: {seqs} {len(unique)}\n')
+    sys.stderr.write(f'Filter and transform (finished): {seqs} {len(unique)}\n')
     a = np.concatenate(tuple(a.values()), axis=0)
     np.savez_compressed(sys.argv[2], a)
