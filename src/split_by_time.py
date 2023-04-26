@@ -39,7 +39,8 @@ if __name__ == '__main__':
 
     # get n random IDs per month
     m = pd.read_csv(args.metadata, header=None)
-    m['date'] = pd.to_datetime(m[2])
+    m = m[m[2].str.count('-') == 2]
+    m['date'] = pd.to_datetime(m[2], format='mixed')
     m['date'] = m['date'].dt.to_period('M')
     m = m[[0, 'date']].groupby('date').apply(
             lambda x: x.sample(n=min(args.n, x.shape[0]),

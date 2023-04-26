@@ -67,7 +67,8 @@ if __name__ == "__main__":
     m = m.loc[entries]
 
     # convert date to usable format
-    m['date'] = pd.to_datetime(m['collection_date'])
+    m['date'] = pd.to_datetime(m['collection_date'],
+                               format='mixed')
 
     # compute how many days in the past each sequence is from
     m['delta'] = end - m['date']
@@ -76,11 +77,12 @@ if __name__ == "__main__":
     # check if there are sequences in the future and exit with error
     future = m[m['days'] < 0].shape[0]
     if future > 0:
-        sys.stderr.write(f'ERROR: there are {future} entries from the future\n')
-        sys.exit(1)
+        sys.stderr.write(f'WARNING: there are {future} entries from the future\n')
 
     # apply Hill function to derive weigth
     m['weight'] = hill_func(m['days'], 0, 1, options.c, options.d)
+    # give a weight of one to the samples from the "future"
+    m.loc[m[m['days'] < 0].index, 'weight'] = 1
 
     first = True
     for w in m['weight'].values:
