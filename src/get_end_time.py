@@ -10,13 +10,17 @@ def get_options():
     description = 'Get exact date for the time weight thing'
     parser = argparse.ArgumentParser(description=description)
 
-    parser.add_argument('yearmonth')
+    parser.add_argument('yearmonth', nargs='?', default=None)
 
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = get_options()
+
+    if args.yearmonth is None:
+        print('')
+        sys.exit(0)
 
     year, month = args.yearmonth.split('-')
     month = int(month)
