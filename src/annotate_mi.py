@@ -152,6 +152,6 @@ if __name__ == "__main__":
                                                                              for x in s2.columns})
     m = pd.concat([m1, m2]).reset_index()
 
-    m['interaction'] = np.where(m['gene_source'] == m['gene_source'], 'same gene', 'different gene')
+    m['interaction'] = np.where(m['gene_source'] == m['gene_target'], 'same gene', 'different gene')
 
     m.drop(columns=['index']).to_csv(options.output, sep='\t', index=False)
