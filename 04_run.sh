@@ -59,3 +59,5 @@ python3 src/calc_distance.py $wdir/mi_all.tsv.gz $wdir/mi_all_distances.tsv
 gzip $wdir/mi_all_distances.tsv
 
 rm $wdir/tmp.txt
+
+python3 src/annotate_mi.py data/GCF_009858895.2_ASM985889v3_genomic.gff.gz $wdir/mi_all_distances.tsv.gz $wdir/mi_annotated.tsv.gz;
