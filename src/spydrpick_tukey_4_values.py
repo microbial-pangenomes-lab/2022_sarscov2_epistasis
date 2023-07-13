@@ -9,6 +9,8 @@ def tukey_outlier(stream):
     d = {}
     for l in stream:
         s = l.rstrip().split()
+        if len(s) == 0:
+            continue
         if s[0] == 'pos_a':
             continue
         a, b, mi = s
