@@ -55,10 +55,11 @@ if __name__ == '__main__':
                 for f in ff:
                     f.write(f'{sid}\n{"".join(s)}\n')
                 kept += 1
-                s = []
+            s = []
             sid = l.rstrip()
         elif l.startswith('>'):
             sid = l.rstrip()
+            s = []
             continue
         else:
             s.append(l.rstrip())
