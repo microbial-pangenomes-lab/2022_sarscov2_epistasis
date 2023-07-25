@@ -11,3 +11,4 @@ dependencies:
 - treeswift
 - dendropy
 - tqdm
+- nextclade
