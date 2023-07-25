@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 
+import os
 import sys
 import argparse
 import pandas as pd
@@ -57,7 +58,7 @@ if __name__ == '__main__':
     files = {x: open(f'{args.output}/{x}.fasta', 'w')
              for x in ids
              if not os.path.exists(f'{args.output}/{x}.fasta.xz')
-             or not os.path.exists(f'{args.output}/{x}.fasta')}
+             and not os.path.exists(f'{args.output}/{x}.fasta')}
     seqs = 0
     s = []
     sid = ''
@@ -69,19 +70,22 @@ if __name__ == '__main__':
                 sys.stderr.write(f'Split: {seqs} {kept}\n')
             seqs += 1
             if sid[1:] in dates:
-                f = files[dates[sid[1:]]]
-                f.write(f'{sid}\n{"".join(s)}\n')
+                if dates[sid[1:]] in files:
+                    f = files[dates[sid[1:]]]
+                    f.write(f'{sid}\n{"".join(s)}\n')
                 kept += 1
-                s = []
+            s = []
             sid = l.rstrip()
         elif l.startswith('>'):
             sid = l.rstrip()
+            s = []
             continue
         else:
             s.append(l.rstrip())
     if sid[1:] in dates and len(s) != 0:
-        f = files[dates[sid[1:]]]
-        f.write(f'{sid}\n{"".join(s)}\n')
+        if dates[sid[1:]] in files:
+            f = files[dates[sid[1:]]]
+            f.write(f'{sid}\n{"".join(s)}\n')
         kept += 1
     sys.stderr.write(f'Split: {seqs} {kept}\n')
     for f in files.values():
