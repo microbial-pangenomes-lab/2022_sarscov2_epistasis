@@ -6,3 +6,6 @@ time=$1
 
 mkdir -p data/time-subsets
 python3 src/combine_times.py data/time $time data/time-subsets
+
+mkdir -p data/time-filtered-subsets
+python3 src/combine_times.py data/time-filtered $time data/time-filtered-subsets

@@ -81,26 +81,6 @@ def parse_gff(file_name):
                 logger.warning(f'{e}, skipping line "{line.rstrip()}" from {file_name}')
                 continue
 
-    return features
-
-
-def get_options():
-    description = 'Annotate MI table using a GFF file'
-    parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('gff',
-                        help='GFF file')
-    parser.add_argument('mi',
-                        help='MI table')
-    parser.add_argument('output',
-                        help='Output table')
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    options = get_options()
-
-    features = parse_gff(options.gff)
-
     res = []
     for feat in features.values():
         for i, position in enumerate(range(feat.start, feat.end+1)):
@@ -118,6 +98,26 @@ if __name__ == "__main__":
     r.loc[r[r['codon'] == 3.0].index, 'feature_codon'] -= 1
 
     r = r[r['ftype'].isin(['five_prime_UTR', 'three_prime_UTR', 'CDS'])]
+
+    return r
+
+
+def get_options():
+    description = 'Annotate MI table using a GFF file'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('gff',
+                        help='GFF file')
+    parser.add_argument('mi',
+                        help='MI table')
+    parser.add_argument('output',
+                        help='Output table')
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    options = get_options()
+
+    r = parse_gff(options.gff)
 
     s = pd.read_csv(options.mi, sep=' ', header=None)
     s.columns = ['pos_a', 'pos_b', 'distance', 'outlier', 'mi']

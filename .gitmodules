@@ -1,3 +1,6 @@
 [submodule "plmc"]
 	path = plmc
 	url = git@github.com:debbiemarkslab/plmc.git
+[submodule "covariants"]
+	path = covariants
+	url = git@github.com:hodcroftlab/covariants.git
