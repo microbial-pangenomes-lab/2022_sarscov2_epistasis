@@ -53,6 +53,7 @@ zcat $wdir/mi/*.gz | sort -n | uniq | awk -F '\t' -v t="$lower_t" '$3 >= t {prin
 # Run aracne
 cat $wdir/mi_all_prefilter.txt | sort -n | uniq | python src/spydrpick_filter.py --cores 1 --outliers $wdir/mi_tukey4.txt > $wdir/tmp.txt
 cat $wdir/tmp.txt | sort -n | uniq | gzip > $wdir/mi_all.tsv.gz
+gzip $wdir/mi_all_prefilter.txt
 
 # Calculate distance between positions
 python3 src/calc_distance.py $wdir/mi_all.tsv.gz $wdir/mi_all_distances.tsv
