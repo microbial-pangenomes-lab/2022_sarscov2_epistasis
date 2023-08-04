@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
 
+import os
 import math
 import random
 import numpy as np
 import pandas as pd
 import networkx as nx
 from scipy import stats
+from sklearn import metrics
+from itertools import permutations
 
 import escapecalculator
 
@@ -25,6 +28,11 @@ ESCAPE = sorted(set(ESCAPE).union(esc.loc[esc['original_escape'] > 0.1]['site'].
 # based on outbreak.info
 MOI = [484, 18, 417, 439, 452, 477, 494, 501, 681]
 
+RBD_INTERESTING = {x for x in set(MOI).union(AFFINITY).union(ESCAPE)
+               if x >= 319 and x <= 540}
+PAIRS = {(x, y) for x, y in permutations(RBD_INTERESTING, 2)}
+ALL_PAIRS = {(x, y)
+             for x, y in permutations(range(319, 541), 2)}
 
 def read_mi(fname, name='all', date=True):
     a = pd.read_csv(fname, sep='\t')
@@ -50,15 +58,59 @@ def read_mi(fname, name='all', date=True):
     return a
 
 
-def enrichment(a, save_gml=None):
+def get_rbd_mutated(indir, names=None):
+    mutated = set()
+    for f in os.listdir(indir):
+        date = f.split('.')[0]
+        if names is not None and date not in names:
+            continue
+        l = pd.read_csv(f'{indir}/{f}', sep='\t',
+                        usecols=['seqName', 'clade', 'Nextclade_pango',
+                                 'partiallyAliased', 'clade_nextstrain',
+                                 'clade_who', 'clade_display',
+                                 'aaSubstitutions', 'aaDeletions', 'aaInsertions'])
+        year = int(date.split('-')[0])
+        month = int(date.split('-')[1])
+    
+        d = {}
+        for clade, line in l[['clade_display', 'aaSubstitutions']].values:
+            for x in line.split(','):
+                k, v = x.split(':')
+                if k != 'S':
+                    continue
+                while True:
+                    v = v[1:]
+                    try:
+                        v = int(v)
+                    except ValueError:
+                        v = v[:-1]
+                        try:
+                            v = int(v)
+                        except ValueError:
+                            continue
+                    break
+                d[k] = d.get(k, set())
+                d[k].add(v)
+    
+            for k, vv in d.items():
+                for v in vv:
+                    if v in range(319, 541):
+                        mutated.add(v)
+    return mutated
+
+
+def enrichment(a, mutated=None, save_gml=None):
+    if mutated is None:
+        mutated = range(319, 541)
+    
     g = nx.Graph()
     for p0, p1 in a[(a['gene_source'] == 'S') &
                     (a['gene_target'] == 'S') &
-                       (a['pos_source'] > 22519) &
-                       (a['pos_source'] < 23186) &
-                       (a['pos_target'] > 22519) &
-                       (a['pos_target'] < 23186)][['feature_codon_source',
-                                                'feature_codon_target']].values:
+                    (a['feature_codon_source'] >= 319) &
+                    (a['feature_codon_source'] <= 540) &
+                    (a['feature_codon_target'] >= 319) &
+                    (a['feature_codon_target'] <= 540)][['feature_codon_source',
+                                                         'feature_codon_target']].values:
         g.add_edge(int(p0), int(p1))
 
     for node in g.nodes:
@@ -78,7 +130,8 @@ def enrichment(a, save_gml=None):
     random.seed(100)
 
     # Simulate if enriched compared to random
-    relevant = set(ESCAPE).union(AFFINITY).union(MOI)
+    relevant = {x for x in set(ESCAPE).union(AFFINITY).union(MOI)
+                if x >= 319 and x <= 540}
 
     RBD_LENGTH = 540 - 319 + 1
 
@@ -92,7 +145,9 @@ def enrichment(a, save_gml=None):
         n_nodes = len(g.nodes)
         n_edges = len(g.edges)
         r = nx.Graph()
-        nodes = list(range(319, 541))
+        nodes = list({x for x in range(319, 541) if x in mutated})
+        if len(nodes) < len(g.nodes):
+            nodes = list(g.nodes)
         while len(r.edges) < n_edges:
             n1 = random.choice(nodes)
             n2 = random.choice(nodes)
@@ -165,6 +220,64 @@ def enrichment(a, save_gml=None):
                       columns=['type', 'round', 'odds-ratio', 'p-value', 'randomization'])
 
     return df
+
+
+def ml_metrics(a, mutated=None, shuffle=False):
+    if mutated is None:
+        mutated = range(319, 541)
+    else:
+        mutated = sorted(mutated)
+
+    tl = a.groupby('outlier')['mi'].min().to_dict()
+
+    a = a[(a['gene_source'] == 'S') &
+          (a['gene_target'] == 'S') &
+          (a['feature_codon_source'].isin(range(319, 541))) &
+          (a['feature_codon_target'].isin(range(319, 541)))]
+
+    if shuffle:
+        a = a.copy()
+        values = []
+        observed = sorted(set(a['feature_codon_source']).union(a['feature_codon_target']))
+        if len(observed) > len(mutated):
+            mutated = observed
+        i = 0
+        while len(values) < a.shape[0]:
+            p1 = random.choice(mutated)
+            p2 = random.choice(mutated)
+            if p1 != p2 and abs(p1 - p2) > 1 and (p1, p2) not in values:
+                values.append((p1, p2))
+            i += 1
+            if i > 100 * len(mutated):
+                # give up
+                return np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        a['feature_codon_source'] = [x for x, _ in values]
+        a['feature_codon_target'] = [x for _, x in values]
+    
+    da = a.set_index(['feature_codon_source', 'feature_codon_target'])['mi'].to_dict()
+    rda = {}
+    for (p1, p2), v in da.items():
+        rda[(int(p1), int(p2))] = v
+    
+    y_true = np.array([1 if k in PAIRS
+                       else 0
+                       for k in ALL_PAIRS
+                       if k in rda])
+    
+    y_values = np.array([rda.get(k, np.nan) for k in ALL_PAIRS if k in rda])
+
+    f1 = metrics.f1_score(y_true, y_values > tl[1])
+    f2 = metrics.f1_score(y_true, y_values > tl[2])
+    f3 = metrics.f1_score(y_true, y_values > tl[3])
+    f4 = metrics.f1_score(y_true, y_values > tl[4])
+    
+    pr_auc = metrics.auc(metrics.precision_recall_curve(y_true, y_values)[1],
+                         metrics.precision_recall_curve(y_true, y_values)[0])
+    
+    roc_auc = metrics.auc(metrics.roc_curve(y_true, y_values)[0],
+                          metrics.roc_curve(y_true, y_values)[1])
+
+    return f1, f2, f3, f4, pr_auc, roc_auc
 
 
 if __name__ == "__main__":
