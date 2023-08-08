@@ -68,8 +68,8 @@ if __name__ == '__main__':
     for f in inputs:
         fout = lzma.open(os.path.join(args.output, f), 'wt')
         for sid, seq in parse_fasta(os.path.join(args.input, f)):
-            sacc = d[sid]
-            if sacc in bad_seqs:
+            sacc = d.get(sid)
+            if sacc is None or sacc in bad_seqs:
                 sys.stderr.write(f'skipping {sid} from {f}\n')
                 continue
             fout.write(f'>{sid}\n{seq}\n')
