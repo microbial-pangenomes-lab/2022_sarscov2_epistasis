@@ -34,22 +34,27 @@ def read_binary(filename):
     return b
 
 
-def joint_probabilities(j, m, x, y, weights, pos_n, n_eff, r_x_r_y):
-    a = m[pos_n]
-    a = weights * (a == x).astype(np.uint8)
-    for p_m in range(0, m.shape[0], CHUNK):
-        b = m[p_m: p_m + CHUNK]
-        d = (np.inner(a,
-                      (b == y).astype(np.float64)) +
-             0.5) / (n_eff + r_x_r_y)
-        j[:, p_m: p_m + CHUNK] = d
+def joint_probabilities(j, m, x, y, weights, pos_n, n_eff):
+        a = m[pos_n]
+        a = (a == x).astype(np.float64)
+        asum = np.empty(a.shape[0])
+        for i in range(a.shape[0]):
+            asum[i] = np.unique(a[i]).shape[0]
+        a = weights * a
+        for p_m in range(0, m.shape[0], CHUNK):
+            b = m[p_m: p_m + CHUNK]
+            b = (b == y).astype(np.float64)
+            bsum = np.empty(b.shape[0])
+            for i in range(b.shape[0]):
+                bsum[i] = np.unique(b[i]).shape[0]
+            r_x_r_y = (asum * bsum.reshape(-1, 1) * 0.5).T
+            d = (np.inner(a, b) + 0.5) / (n_eff + r_x_r_y)
+            j[:, p_m: p_m + CHUNK] = d
 
 
 def compute_mi(m, pos_n, weights, nstates=5):
     n_eff = np.sum(weights)
     sys.stderr.write(f'MI: effective sample size: {n_eff}\n')
-
-    r_x_r_y = nstates * nstates * 0.5
 
     # calculate co-occurence matrix using matrix algebra
     pj = {}
@@ -58,7 +63,7 @@ def compute_mi(m, pos_n, weights, nstates=5):
         for y in range(nstates):
             sys.stderr.write(f'MI: compute joint probabilities ({x}, {y})\n')
             pj[x][y] = np.empty((pos_n.shape[0], m.shape[0]))
-            joint_probabilities(pj[x][y], m, x, y, weights, pos_n, n_eff, r_x_r_y)
+            joint_probabilities(pj[x][y], m, x, y, weights, pos_n, n_eff)
 
     sys.stderr.write(f'MI: compute marginal probabilities\n')
     ph = {}
@@ -202,21 +207,5 @@ if __name__ == "__main__":
     os.environ['OMP_NUM_THREADS'] = cores
     #
     import numpy as np
-
-    #import numba
-    #from numba import cuda
-
-    #numba.set_num_threads(options.cores)
-
-    #@cuda.jit
-    #def joint_probabilities_cuda(j, m, x, y, weights, pos_n, n_eff, r_x_r_y):
-    #    a = m[pos_n]
-    #    a = weights * (a == x).astype(np.uint8)
-    #    for p_m in range(0, m.shape[0], CHUNK):
-    #        b = m[p_m: p_m + CHUNK]
-    #        d = (np.inner(a,
-    #                      (b == y).astype(np.float64)) +
-    #             0.5) / (n_eff + r_x_r_y)
-    #        j[:, p_m: p_m + CHUNK] = d
 
     main(options)
