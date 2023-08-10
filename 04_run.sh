@@ -33,7 +33,7 @@ python3 src/get_time_weight.py ${treedir}/metadata.csv $wdir/filtered_dca.fasta.
 python src/combine_weights.py product $wdir/filtered_dca_tree.fasta.weights $wdir/filtered_dca_time.fasta.weights > $wdir/product_weights.txt
 
 # Run spydrpick once to calculate mi treshold
-python src/spydrpick_alt.py -a $wdir/filtered.npz -p $wdir/filtered_dca.fasta.pos -w $wdir/product_weights.txt > $wdir/filtered.mi_t
+python src/spydrpick_alt.py -a $wdir/filtered.npz -p $wdir/filtered_dca.fasta.pos -w $wdir/product_weights.txt --cores $cores > $wdir/filtered.mi_t
 
 # Create mi folder if it doesn't exist yet
 rm -rf $wdir/mi || true
