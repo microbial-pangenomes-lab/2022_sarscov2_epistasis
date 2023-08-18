@@ -12,3 +12,13 @@ dependencies:
 - dendropy
 - tqdm
 - nextclade
+- scipy
+- networkx
+- scikit-learn
+- matplotlib
+- seaborn
+- jupyterlab
+- nbconvert
+- pip
+- pip:
+    - pyfish

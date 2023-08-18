@@ -4,6 +4,7 @@
 import os
 import math
 import random
+import warnings
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -22,9 +23,16 @@ ESCAPE = [417, 446, 484, 493, 496, 505,
           447, 449, 506, 406]
 # data from the escape calculator
 # commit 5ebb88e
-esc = escapecalculator.EscapeCalculator()
-esc = esc.escape_per_site([])[['site', 'original_escape']]
-ESCAPE = sorted(set(ESCAPE).union(esc.loc[esc['original_escape'] > 0.1]['site'].values))
+if not os.path.exists('escape.txt'):
+    esc = escapecalculator.EscapeCalculator()
+    esc = esc.escape_per_site([])[['site', 'original_escape']]
+    ESCAPE = sorted(set(ESCAPE).union(esc.loc[esc['original_escape'] > 0.1]['site'].values))
+    f = open('escape.txt', 'w')
+    f.write('\n'.join([str(x) for x in esc.loc[esc['original_escape'] > 0.1]['site'].values]))
+    f.close()
+else:
+    ESCAPE = sorted(set(ESCAPE).union([int(x.rstrip())
+                                       for x in open('escape.txt')]))
 # based on outbreak.info
 MOI = [484, 18, 417, 439, 452, 477, 494, 501, 681]
 
@@ -99,9 +107,12 @@ def get_rbd_mutated(indir, names=None):
     return mutated
 
 
-def enrichment(a, mutated=None, save_gml=None):
+def rbd_network(a, mutated=None, save_gml=None, sample=1, n_random=1000):
     if mutated is None:
         mutated = range(319, 541)
+
+    relevant = {x for x in set(ESCAPE).union(AFFINITY).union(MOI)
+                if x >= 319 and x <= 540}
     
     g = nx.Graph()
     for p0, p1 in a[(a['gene_source'] == 'S') &
@@ -109,8 +120,9 @@ def enrichment(a, mutated=None, save_gml=None):
                     (a['feature_codon_source'] >= 319) &
                     (a['feature_codon_source'] <= 540) &
                     (a['feature_codon_target'] >= 319) &
-                    (a['feature_codon_target'] <= 540)][['feature_codon_source',
-                                                         'feature_codon_target']].values:
+                    (a['feature_codon_target'] <= 540)][[
+            'feature_codon_source',
+            'feature_codon_target']].sample(frac=sample).values:
         g.add_edge(int(p0), int(p1))
 
     for node in g.nodes:
@@ -129,19 +141,13 @@ def enrichment(a, mutated=None, save_gml=None):
 
     random.seed(100)
 
-    # Simulate if enriched compared to random
-    relevant = {x for x in set(ESCAPE).union(AFFINITY).union(MOI)
-                if x >= 319 and x <= 540}
+    cg = [(x, y) for x, y in g.edges]
+    yield (np.array([1 if x in relevant and y in relevant
+                     else 0
+                     for x, y in cg]),
+           'original')
 
-    RBD_LENGTH = 540 - 319 + 1
-
-    res = []
-
-    # randomization #1: any position in the RBD
-    # randomization #2: same positions as in the original graph
-    rgraphs1 = []
-    rgraphs2 = []
-    for _ in range(1000):
+    for _ in range(n_random):
         n_nodes = len(g.nodes)
         n_edges = len(g.edges)
         r = nx.Graph()
@@ -153,76 +159,59 @@ def enrichment(a, mutated=None, save_gml=None):
             n2 = random.choice(nodes)
             if n1 != n2 and abs(n1 - n2) > 1:
                 r.add_edge(n1, n2)
-        rgraphs1.append(r)
-        node_mapping = dict(zip(g.nodes(),
-                            sorted(g.nodes(), key=lambda k: random.random())))
-        r = nx.relabel_nodes(g, node_mapping)
-        # remove connections between subsequent nodes
-        # change them to another random edge
-        adj = [(x, y) for x, y in r.edges
-               if abs(x - y) == 1]
-        if len(adj) > 1:
-            orig = len(r.edges)
-            nodes = list(r.nodes)
-            r.remove_edges_from(adj)
-            while len(r.edges) < orig:
-                n1 = random.choice(nodes)
-                n2 = random.choice(nodes)
-                if n1 != n2 and abs(n1 - n2) > 1:
-                    r.add_edge(n1, n2)
-        #
-        rgraphs2.append(r)
+        cg = [(x, y) for x, y in r.edges]
+        yield (np.array([1 if x in relevant and y in relevant
+                         else 0
+                         for x, y in cg]),
+               'random')
 
-    for i, cg in enumerate([g] + rgraphs1):
-        all_possible = math.factorial(RBD_LENGTH) / (math.factorial(2) * math.factorial(RBD_LENGTH - 2))
-        int_rel = len([(x, y) for x, y in cg.edges if x in relevant and y in relevant])
-        int_not = len(cg.edges) - int_rel
-        all_possible_rel = math.factorial(len(relevant)) / (math.factorial(2) * math.factorial(len(relevant) - 2))
-        not_int_rel = all_possible_rel - int_rel
-        not_int_not_rel = all_possible - not_int_rel - int_not - int_rel
 
-        table = [[int_rel, not_int_rel],
-                 [int_not, not_int_not_rel]]
-        odds_ratio, pvalue = stats.fisher_exact(table,
-                                                alternative='greater')
+def enrichment_score(*g):
+    g = g[0]
+    
+    RBD_LENGTH = 540 - 319 + 1
+    relevant = {x for x in set(ESCAPE).union(AFFINITY).union(MOI)
+                if x >= 319 and x <= 540}
+    
+    all_possible = math.factorial(RBD_LENGTH) / (math.factorial(2) * math.factorial(RBD_LENGTH - 2))
+    int_rel = g.sum()
+    int_not = g.shape[0] - int_rel
+    all_possible_rel = math.factorial(len(relevant)) / (math.factorial(2) * math.factorial(len(relevant) - 2))
+    not_int_rel = all_possible_rel - int_rel
+    not_int_not_rel = all_possible - not_int_rel - int_not - int_rel
 
-        if i == 0:
-            gtype = 'original'
-            i = np.nan
+    table = [[int_rel, not_int_rel],
+             [int_not, not_int_not_rel]]
+    odds_ratio, pvalue = stats.fisher_exact(table,
+                                            alternative='greater')
+
+    return odds_ratio
+
+
+def enrichment(a, mutated=None, save_gml=None, sample=1, n_random=1000):
+    res = []
+    for g, ntype in rbd_network(a, save_gml=save_gml,
+                                mutated=mutated, sample=sample,
+                                n_random=n_random):
+        odds_ratio = enrichment_score(g)
+        if ntype == 'original':
+            ci = stats.bootstrap((g,), enrichment_score, n_resamples=999,
+                                 confidence_level=0.95)
+            high = ci.confidence_interval.high
+            low = ci.confidence_interval.low
         else:
-            gtype = 'random'
+            high = np.nan
+            low = np.nan
 
-        res.append((gtype, i, odds_ratio, pvalue, 'any_positions'))
-
-    # for i, cg in enumerate([g] + rgraphs2):
-    #     all_possible = math.factorial(len(cg.nodes)) / (math.factorial(2) * math.factorial(len(cg.nodes) - 2))
-    #     int_rel = len([(x, y) for x, y in cg.edges if x in relevant and y in relevant])
-    #     int_not = len(cg.edges) - int_rel
-    #     all_possible_rel = math.factorial(len(relevant)) / (math.factorial(2) * math.factorial(len(relevant) - 2))
-    #     not_int_rel = all_possible_rel - int_rel
-    #     not_int_not_rel = all_possible - not_int_rel - int_not - int_rel
-
-    #     table = [[int_rel, not_int_rel],
-    #              [int_not, not_int_not_rel]]
-    #     print(table, all_possible)
-    #     odds_ratio, pvalue = stats.fisher_exact(table,
-    #                                             alternative='greater')
-
-    #     if i == 0:
-    #         gtype = 'original'
-    #         i = np.nan
-    #     else:
-    #         gtype = 'random'
-
-    #     res.append((gtype, i, odds_ratio, pvalue, 'fixed_positions'))
+        res.append((ntype, odds_ratio, low, high))
 
     df = pd.DataFrame(res,
-                      columns=['type', 'round', 'odds-ratio', 'p-value', 'randomization'])
+                      columns=['type', 'odds-ratio', 'low', 'high'])
 
     return df
 
 
-def ml_metrics(a, mutated=None, shuffle=False):
+def get_ml_data(a, mutated=None, shuffle=False):
     if mutated is None:
         mutated = range(319, 541)
     else:
@@ -266,18 +255,147 @@ def ml_metrics(a, mutated=None, shuffle=False):
     
     y_values = np.array([rda.get(k, np.nan) for k in ALL_PAIRS if k in rda])
 
-    f1 = metrics.f1_score(y_true, y_values > tl[1])
-    f2 = metrics.f1_score(y_true, y_values > tl[2])
-    f3 = metrics.f1_score(y_true, y_values > tl[3])
-    f4 = metrics.f1_score(y_true, y_values > tl[4])
-    
-    pr_auc = metrics.auc(metrics.precision_recall_curve(y_true, y_values)[1],
-                         metrics.precision_recall_curve(y_true, y_values)[0])
-    
-    roc_auc = metrics.auc(metrics.roc_curve(y_true, y_values)[0],
-                          metrics.roc_curve(y_true, y_values)[1])
+    v1 = y_values > tl[1]
+    v2 = y_values > tl[2]
+    v3 = y_values > tl[3]
+    v4 = y_values > tl[4]
 
-    return f1, f2, f3, f4, pr_auc, roc_auc
+    return y_true, y_values, v1, v2, v3, v4
+
+
+def get_specificity(y_true, y_values):
+    try:
+        tn, fp, fn, tp = metrics.confusion_matrix(y_true, y_values).ravel()
+    except ValueError:
+        return np.nan
+    return tn / (tn + fp)
+
+
+def get_sensitivity(y_true, y_values):
+    try:
+        tn, fp, fn, tp = metrics.confusion_matrix(y_true, y_values).ravel()
+    except ValueError:
+        return np.nan
+    return tp / (tp + fn)
+
+
+def get_roc_auc(y_true, y_values):
+    x, y, _ = metrics.roc_curve(y_true, y_values)
+    return metrics.auc(x, y)
+
+
+def get_pr_auc(y_true, y_values):
+    y, x, _ = metrics.precision_recall_curve(y_true, y_values)
+    return metrics.auc(x, y)
+
+
+def ml_metrics(a, mutated=None, shuffle=False):
+    y_true, y_values, v1, v2, v3, v4 = get_ml_data(a,
+                                                   mutated=mutated,
+                                                   shuffle=shuffle)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        f1 = metrics.f1_score(y_true, v1)
+        f2 = metrics.f1_score(y_true, v2)
+        f3 = metrics.f1_score(y_true, v3)
+        f4 = metrics.f1_score(y_true, v4)
+    
+        if not shuffle:
+            ci = stats.bootstrap((y_true, v1), metrics.f1_score, paired=True,
+                                 n_resamples=999)
+            f1l, f1h = ci.confidence_interval.low, ci.confidence_interval.high
+            ci = stats.bootstrap((y_true, v2), metrics.f1_score, paired=True,
+                                 n_resamples=999)
+            f2l, f2h = ci.confidence_interval.low, ci.confidence_interval.high
+            ci = stats.bootstrap((y_true, v3), metrics.f1_score, paired=True,
+                                 n_resamples=999)
+            f3l, f3h = ci.confidence_interval.low, ci.confidence_interval.high
+            ci = stats.bootstrap((y_true, v4), metrics.f1_score, paired=True,
+                                 n_resamples=999)
+            f4l, f4h = ci.confidence_interval.low, ci.confidence_interval.high
+        else:
+            f1l, f1h = np.nan, np.nan
+            f2l, f2h = np.nan, np.nan
+            f3l, f3h = np.nan, np.nan
+            f4l, f4h = np.nan, np.nan
+
+        spec1 = get_specificity(y_true, v1)
+        sens1 = get_sensitivity(y_true, v1)
+        spec2 = get_specificity(y_true, v2)
+        sens2 = get_sensitivity(y_true, v2)
+        spec3 = get_specificity(y_true, v3)
+        sens3 = get_sensitivity(y_true, v3)
+        spec4 = get_specificity(y_true, v4)
+        sens4 = get_sensitivity(y_true, v4)
+        if not shuffle:
+            ci = stats.bootstrap((y_true, v1), get_specificity, paired=True,
+                                 n_resamples=999)
+            sp1l, sp1h = ci.confidence_interval.low, ci.confidence_interval.high
+            ci = stats.bootstrap((y_true, v2), get_specificity, paired=True,
+                                 n_resamples=999)
+            sp2l, sp2h = ci.confidence_interval.low, ci.confidence_interval.high
+            ci = stats.bootstrap((y_true, v3), get_specificity, paired=True,
+                                 n_resamples=999)
+            sp3l, sp3h = ci.confidence_interval.low, ci.confidence_interval.high
+            ci = stats.bootstrap((y_true, v4), get_specificity, paired=True,
+                                 n_resamples=999)
+            sp4l, sp4h = ci.confidence_interval.low, ci.confidence_interval.high
+            
+            ci = stats.bootstrap((y_true, v1), get_sensitivity, paired=True,
+                                 n_resamples=999)
+            se1l, se1h = ci.confidence_interval.low, ci.confidence_interval.high
+            ci = stats.bootstrap((y_true, v2), get_sensitivity, paired=True,
+                                 n_resamples=999)
+            se2l, se2h = ci.confidence_interval.low, ci.confidence_interval.high
+            ci = stats.bootstrap((y_true, v3), get_sensitivity, paired=True,
+                                 n_resamples=999)
+            se3l, se3h = ci.confidence_interval.low, ci.confidence_interval.high
+            ci = stats.bootstrap((y_true, v4), get_sensitivity, paired=True,
+                                 n_resamples=999)
+            se4l, se4h = ci.confidence_interval.low, ci.confidence_interval.high
+        else:
+            sp1l, sp1h = np.nan, np.nan
+            sp2l, sp2h = np.nan, np.nan
+            sp3l, sp3h = np.nan, np.nan
+            sp4l, sp4h = np.nan, np.nan
+
+            se1l, se1h = np.nan, np.nan
+            se2l, se2h = np.nan, np.nan
+            se3l, se3h = np.nan, np.nan
+            se4l, se4h = np.nan, np.nan
+
+        # roc_auc = get_roc_auc(y_true, y_values)
+        # pr_auc = get_pr_auc(y_true, y_values)
+    
+        # if not shuffle:
+            # ci = stats.bootstrap((y_true, y_values), get_roc_auc, paired=True, n_resamples=999)
+        #     rl, rh = ci.confidence_interval.low, ci.confidence_interval.high
+        #     ci = stats.bootstrap((y_true, y_values), get_pr_auc, paired=True, n_resamples=999)
+        #     pl, ph = ci.confidence_interval.low, ci.confidence_interval.high
+        # else:
+        #     rl, rh = np.nan, np.nan
+        #     pl, ph = np.nan, np.nan
+    
+    return pd.DataFrame((
+                         ('f1', 1, f1, f1l, f1h),
+                         ('f1', 2, f2, f2l, f2h),
+                         ('f1', 3, f3, f3l, f3h),
+                         ('f1', 4, f4, f4l, f4h),
+                         ('specificity', 1, spec1, sp1l, sp1h),
+                         ('specificity', 2, spec2, sp2l, sp2h),
+                         ('specificity', 3, spec3, sp3l, sp4h),
+                         ('specificity', 4, spec4, sp3l, sp4h),
+                         ('sensitivity', 1, sens1, se1l, se1h),
+                         ('sensitivity', 2, sens2, se2l, se2h),
+                         ('sensitivity', 3, sens3, se3l, se4h),
+                         ('sensitivity', 4, sens4, se3l, se4h),
+                         # ('pr_auc', np.nan, pr_auc, pl, ph),
+                         # ('roc_auc', np.nan, roc_auc, rl, rh)
+                         ),
+                        columns=['metric', 'outlier',
+                                 'value', 'low', 'high']
+                       )
 
 
 if __name__ == "__main__":
