@@ -106,9 +106,7 @@ You can then run the notebooks one by one to regenerate all plots and supplement
 
 ## Citation
 
-    Real-time identification of epistatic interactions in SARS-CoV-2 from large genome collections
-    Gabriel Innocenti and Marco Galardini
-    (DOI coming soon)
+    Innocenti, G., & Galardini, M. (2023). Real-time identification of epistatic interactions in SARS-CoV-2 from large genome collections (p. 2023.08.22.554253). bioRxiv. [https://doi.org/10.1101/2023.08.22.554253](https://doi.org/10.1101/2023.08.22.554253)
 
 The method to compute mutual information has been first described in the following publication:
 
