@@ -51,7 +51,8 @@ if __name__ == '__main__':
 
     # sort input files
     inputs = sorted([x for x in os.listdir(args.input)
-                     if x.endswith('.fasta.xz')],
+                     if x.endswith('.fasta.xz')
+                     and x not in os.listdir(args.output)],
                     key=lambda x: (int(x.split('-')[0]),
                                    int(x.split('-')[1].split('.')[0])))
     all_ids = {y for x in inputs
@@ -65,7 +66,11 @@ if __name__ == '__main__':
             d[sid] = sacc.split('hCoV-19/')[1].replace(' ', '')
 
     # cycle through each file and write the filtered version
+    already = os.listdir(args.output)
     for f in inputs:
+        if f in already:
+            sys.stderr.write(f'skipping {f}\n')
+            continue
         fout = lzma.open(os.path.join(args.output, f), 'wt')
         for sid, seq in parse_fasta(os.path.join(args.input, f)):
             sacc = d.get(sid)
