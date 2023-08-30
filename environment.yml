@@ -19,6 +19,7 @@ dependencies:
 - seaborn
 - jupyterlab
 - nbconvert
+- biopython
 - pip
 - pip:
     - pyfish
