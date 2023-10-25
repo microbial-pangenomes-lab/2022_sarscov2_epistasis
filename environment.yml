@@ -19,6 +19,7 @@ dependencies:
 - seaborn
 - jupyterlab
 - nbconvert
+- openpyxl
 - pip
 - pip:
     - pyfish

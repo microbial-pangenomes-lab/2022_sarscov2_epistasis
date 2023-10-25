@@ -211,13 +211,13 @@ def enrichment(a, mutated=None, save_gml=None, sample=1, n_random=1000):
     return df
 
 
-def get_ml_data(a, mutated=None, shuffle=False):
+def get_ml_data(a, mutated=None, shuffle=False, col='mi'):
     if mutated is None:
         mutated = range(319, 541)
     else:
         mutated = sorted(mutated)
 
-    tl = a.groupby('outlier')['mi'].min().to_dict()
+    tl = a.groupby('outlier')[col].min().to_dict()
 
     a = a[(a['gene_source'] == 'S') &
           (a['gene_target'] == 'S') &
@@ -243,7 +243,7 @@ def get_ml_data(a, mutated=None, shuffle=False):
         a['feature_codon_source'] = [x for x, _ in values]
         a['feature_codon_target'] = [x for _, x in values]
     
-    da = a.set_index(['feature_codon_source', 'feature_codon_target'])['mi'].to_dict()
+    da = a.set_index(['feature_codon_source', 'feature_codon_target'])[col].to_dict()
     rda = {}
     for (p1, p2), v in da.items():
         rda[(int(p1), int(p2))] = v
@@ -255,10 +255,13 @@ def get_ml_data(a, mutated=None, shuffle=False):
     
     y_values = np.array([rda.get(k, np.nan) for k in ALL_PAIRS if k in rda])
 
-    v1 = y_values > tl[1]
-    v2 = y_values > tl[2]
-    v3 = y_values > tl[3]
-    v4 = y_values > tl[4]
+    v1, v2, v3, v4 = np.nan, np.nan, np.nan, np.nan
+    for thr, var in zip(range(1, 5),
+                        [v1, v2, v3, v4]):
+        try:
+            var = y_values > tl[thr]
+        except KeyError:
+            var = np.nan
 
     return y_true, y_values, v1, v2, v3, v4
 
@@ -289,31 +292,56 @@ def get_pr_auc(y_true, y_values):
     return metrics.auc(x, y)
 
 
-def ml_metrics(a, mutated=None, shuffle=False):
+def ml_metrics(a, mutated=None, shuffle=False, col='mi'):
     y_true, y_values, v1, v2, v3, v4 = get_ml_data(a,
                                                    mutated=mutated,
-                                                   shuffle=shuffle)
+                                                   shuffle=shuffle,
+                                                   col=col)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        f1 = metrics.f1_score(y_true, v1)
-        f2 = metrics.f1_score(y_true, v2)
-        f3 = metrics.f1_score(y_true, v3)
-        f4 = metrics.f1_score(y_true, v4)
+        if np.isnan(v1):
+            f1 = np.nan
+        else:
+            f1 = metrics.f1_score(y_true, v1)
+        if np.isnan(v2):
+            f2 = np.nan
+        else:
+            f2 = metrics.f1_score(y_true, v2)
+        if np.isnan(v3):
+            f3 = np.nan
+        else:
+            f3 = metrics.f1_score(y_true, v3)
+        if np.isnan(v4):
+            f4 = np.nan
+        else:
+            f4 = metrics.f1_score(y_true, v4)
     
         if not shuffle:
-            ci = stats.bootstrap((y_true, v1), metrics.f1_score, paired=True,
-                                 n_resamples=999)
-            f1l, f1h = ci.confidence_interval.low, ci.confidence_interval.high
-            ci = stats.bootstrap((y_true, v2), metrics.f1_score, paired=True,
-                                 n_resamples=999)
-            f2l, f2h = ci.confidence_interval.low, ci.confidence_interval.high
-            ci = stats.bootstrap((y_true, v3), metrics.f1_score, paired=True,
-                                 n_resamples=999)
-            f3l, f3h = ci.confidence_interval.low, ci.confidence_interval.high
-            ci = stats.bootstrap((y_true, v4), metrics.f1_score, paired=True,
-                                 n_resamples=999)
-            f4l, f4h = ci.confidence_interval.low, ci.confidence_interval.high
+            try:
+                ci = stats.bootstrap((y_true, v1), metrics.f1_score, paired=True,
+                                     n_resamples=999)
+                f1l, f1h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                f1l, f1h = np.nan, np.nan
+            try:
+                ci = stats.bootstrap((y_true, v2), metrics.f1_score, paired=True,
+                                     n_resamples=999)
+                f2l, f2h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                f2l, f2h = np.nan, np.nan
+            try:
+                ci = stats.bootstrap((y_true, v3), metrics.f1_score, paired=True,
+                                     n_resamples=999)
+                f3l, f3h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                f3l, f3h = np.nan, np.nan
+            try:
+                ci = stats.bootstrap((y_true, v4), metrics.f1_score, paired=True,
+                                     n_resamples=999)
+                f4l, f4h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                f4l, f4h = np.nan, np.nan
         else:
             f1l, f1h = np.nan, np.nan
             f2l, f2h = np.nan, np.nan
@@ -329,31 +357,55 @@ def ml_metrics(a, mutated=None, shuffle=False):
         spec4 = get_specificity(y_true, v4)
         sens4 = get_sensitivity(y_true, v4)
         if not shuffle:
-            ci = stats.bootstrap((y_true, v1), get_specificity, paired=True,
-                                 n_resamples=999)
-            sp1l, sp1h = ci.confidence_interval.low, ci.confidence_interval.high
-            ci = stats.bootstrap((y_true, v2), get_specificity, paired=True,
-                                 n_resamples=999)
-            sp2l, sp2h = ci.confidence_interval.low, ci.confidence_interval.high
-            ci = stats.bootstrap((y_true, v3), get_specificity, paired=True,
-                                 n_resamples=999)
-            sp3l, sp3h = ci.confidence_interval.low, ci.confidence_interval.high
-            ci = stats.bootstrap((y_true, v4), get_specificity, paired=True,
-                                 n_resamples=999)
-            sp4l, sp4h = ci.confidence_interval.low, ci.confidence_interval.high
-            
-            ci = stats.bootstrap((y_true, v1), get_sensitivity, paired=True,
-                                 n_resamples=999)
-            se1l, se1h = ci.confidence_interval.low, ci.confidence_interval.high
-            ci = stats.bootstrap((y_true, v2), get_sensitivity, paired=True,
-                                 n_resamples=999)
-            se2l, se2h = ci.confidence_interval.low, ci.confidence_interval.high
-            ci = stats.bootstrap((y_true, v3), get_sensitivity, paired=True,
-                                 n_resamples=999)
-            se3l, se3h = ci.confidence_interval.low, ci.confidence_interval.high
-            ci = stats.bootstrap((y_true, v4), get_sensitivity, paired=True,
-                                 n_resamples=999)
-            se4l, se4h = ci.confidence_interval.low, ci.confidence_interval.high
+            try:
+                ci = stats.bootstrap((y_true, v1), get_specificity, paired=True,
+                                     n_resamples=999)
+                sp1l, sp1h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                sp1l, sp1h = np.nan, np.nan
+            try:
+                ci = stats.bootstrap((y_true, v2), get_specificity, paired=True,
+                                     n_resamples=999)
+                sp2l, sp2h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                sp2l, sp2h = np.nan, np.nan
+            try:
+                ci = stats.bootstrap((y_true, v3), get_specificity, paired=True,
+                                     n_resamples=999)
+                sp3l, sp3h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                sp3l, sp3h = np.nan, np.nan
+            try:
+                ci = stats.bootstrap((y_true, v4), get_specificity, paired=True,
+                                     n_resamples=999)
+                sp4l, sp4h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                sp4l, sp4h = np.nan, np.nan
+
+            try:
+                ci = stats.bootstrap((y_true, v1), get_sensitivity, paired=True,
+                                     n_resamples=999)
+                se1l, se1h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                se1l, se1h = np.nan, np.nan
+            try:
+                ci = stats.bootstrap((y_true, v2), get_sensitivity, paired=True,
+                                     n_resamples=999)
+                se2l, se2h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                se2l, se2h = np.nan, np.nan
+            try:
+                ci = stats.bootstrap((y_true, v3), get_sensitivity, paired=True,
+                                     n_resamples=999)
+                se3l, se3h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                se3l, se3h = np.nan, np.nan
+            try:
+                ci = stats.bootstrap((y_true, v4), get_sensitivity, paired=True,
+                                     n_resamples=999)
+                se4l, se4h = ci.confidence_interval.low, ci.confidence_interval.high
+            except ValueError:
+                se4l, se4h = np.nan, np.nan
         else:
             sp1l, sp1h = np.nan, np.nan
             sp2l, sp2h = np.nan, np.nan

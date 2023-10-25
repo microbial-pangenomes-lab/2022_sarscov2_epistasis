@@ -107,10 +107,14 @@ def get_options():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('gff',
                         help='GFF file')
-    parser.add_argument('mi',
-                        help='MI table')
+    parser.add_argument('plmc',
+                        help='PLMC table (with extension .EC)')
     parser.add_argument('output',
                         help='Output table')
+    parser.add_argument('--keep-all',
+                        action='store_true',
+                        default=False,
+                        help='Keep all values, not just outliers')
     return parser.parse_args()
 
 
@@ -119,19 +123,40 @@ if __name__ == "__main__":
 
     r = parse_gff(options.gff)
 
-    s = pd.read_csv(options.mi, sep=' ', header=None)
-    s.columns = ['pos_a', 'pos_b', 'distance', 'outlier', 'mi']
+    s = pd.read_csv(options.plmc, sep=' ', header=None)
+    s.columns = ['pos_a', 'base_a',
+                 'pos_b', 'base_b',
+                 '_', 'plmc']
+    s['pos_a'] += 21562
+    s['pos_b'] += 21562
+    s['distance'] = abs(s['pos_b'] - s['pos_a'])
+
+    Q1, Q3 = np.quantile(s['plmc'], [0.25, 0.75])
+    t1 = Q3 + 6 * (Q3 - Q1)
+    t2 = Q3 + 9 * (Q3 - Q1)
+    t3 = Q3 + 13.5 * (Q3 - Q1)
+    t4 = Q3 + 20.25 * (Q3 - Q1)
+
+    s.loc[s[s['plmc'] < t1].index, 'outlier'] = 0
+    s.loc[s[s['plmc'] >= t1].index, 'outlier'] = 1
+    s.loc[s[s['plmc'] >= t2].index, 'outlier'] = 2
+    s.loc[s[s['plmc'] >= t3].index, 'outlier'] = 3
+    s.loc[s[s['plmc'] >= t4].index, 'outlier'] = 4
+
+    if not options.keep_all:
+        s = s[s['outlier'] > 0]
+    s['outlier'] = s['outlier'].astype(np.int64)
 
     s1 = pd.merge(s, r, left_on='pos_a', right_on='position', how='left')
-    s1 = s1.drop(columns=['position', 'strand', 'chromosome'])
     s1 = s1.rename(columns={x: f'{x}_a'
                           for x in ['ftype', 'feature_position', 'feature_codon', 'id',
                                     'gene', 'product', 'codon']})
+    s1 = s1.drop(columns=['position', 'strand', 'chromosome'])
     s2 = pd.merge(s1, r, left_on='pos_b', right_on='position', how='left')
-    s2 = s2.drop(columns=['position', 'strand', 'chromosome'])
     s2 = s2.rename(columns={x: f'{x}_b'
                           for x in ['ftype', 'feature_position', 'feature_codon', 'id',
                                     'gene', 'product', 'codon']})
+    s2 = s2.drop(columns=['position', 'strand', 'chromosome'])
     # add aminoacid distance
     idx = s2[s2['gene_a'] == s2['gene_b']].index
 
@@ -139,18 +164,17 @@ if __name__ == "__main__":
     s2.loc[idx, 'codon_distance']
 
     # remove distinction between a and b by duplicating the table and renaming
-    m1 = s2[['pos_a', 'pos_b', 'distance', 'outlier', 'mi',
+    m1 = s2[['pos_a', 'pos_b', 'distance', 'outlier', 'plmc',
             'feature_position_a', 'gene_a', 'codon_a',
             'feature_codon_a', 'feature_position_b', 'gene_b',
             'codon_b', 'feature_codon_b', 'codon_distance']].rename(columns={x: x.replace('_a', '_source').replace('_b', '_target')
                                                                              for x in s2.columns})
-    m2 = s2[['pos_b', 'pos_a', 'distance', 'outlier', 'mi',
+    m2 = s2[['pos_b', 'pos_a', 'distance', 'outlier', 'plmc',
             'feature_position_b', 'gene_b', 'codon_b',
             'feature_codon_b', 'feature_position_a', 'gene_a',
             'codon_a', 'feature_codon_a', 'codon_distance']].rename(columns={x: x.replace('_b', '_source').replace('_a', '_target')
                                                                              for x in s2.columns})
     m = pd.concat([m1, m2]).reset_index()
-
     m['interaction'] = np.where(m['gene_source'] == m['gene_target'], 'same gene', 'different gene')
 
-    m.drop(columns=['index']).to_csv(options.output, sep='\t', index=False)
+    m.to_csv(options.output, sep='\t', index=False)
