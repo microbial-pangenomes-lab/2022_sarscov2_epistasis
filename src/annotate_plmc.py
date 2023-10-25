@@ -161,20 +161,5 @@ if __name__ == "__main__":
     idx = s2[s2['gene_a'] == s2['gene_b']].index
 
     s2.loc[idx, 'codon_distance'] = (s2.loc[idx, 'feature_codon_a'] - s2.loc[idx, 'feature_codon_b']).abs()
-    s2.loc[idx, 'codon_distance']
 
-    # remove distinction between a and b by duplicating the table and renaming
-    m1 = s2[['pos_a', 'pos_b', 'distance', 'outlier', 'plmc',
-            'feature_position_a', 'gene_a', 'codon_a',
-            'feature_codon_a', 'feature_position_b', 'gene_b',
-            'codon_b', 'feature_codon_b', 'codon_distance']].rename(columns={x: x.replace('_a', '_source').replace('_b', '_target')
-                                                                             for x in s2.columns})
-    m2 = s2[['pos_b', 'pos_a', 'distance', 'outlier', 'plmc',
-            'feature_position_b', 'gene_b', 'codon_b',
-            'feature_codon_b', 'feature_position_a', 'gene_a',
-            'codon_a', 'feature_codon_a', 'codon_distance']].rename(columns={x: x.replace('_b', '_source').replace('_a', '_target')
-                                                                             for x in s2.columns})
-    m = pd.concat([m1, m2]).reset_index()
-    m['interaction'] = np.where(m['gene_source'] == m['gene_target'], 'same gene', 'different gene')
-
-    m.to_csv(options.output, sep='\t', index=False)
+    s2.to_csv(options.output, sep='\t', index=False)
