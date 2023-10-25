@@ -15,7 +15,7 @@ xzcat prefiltered.fasta.xz | python3 src/split_by_time.py data/tree_subset.txt d
 xz -T $cores data/time/*.fasta
 
 mkdir -p data/time-10000
-xzcat prefiltered.fasta.xz | python3 src/split_by_time.py data/tree_subset.txt data/time/ --last $time -n 10000
+xzcat prefiltered.fasta.xz | python3 src/split_by_time.py data/tree_subset.txt data/time-10000/ --last $time -n 10000
 xz -T $cores data/time-10000/*.fasta
 
 nextclade dataset get -n sars-cov-2 -o data/nextclade
