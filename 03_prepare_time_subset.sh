@@ -12,3 +12,6 @@ python3 src/combine_times.py data/time-filtered $time data/time-filtered-subsets
 
 mkdir -p data/time-10000-filtered-subsets
 python3 src/combine_times.py data/time-10000-filtered $time data/time-10000-filtered-subsets
+
+mkdir -p data/time-100k-filtered-subsets
+python3 src/combine_times.py data/time-100k-filtered $time data/time-100k-filtered-subsets
