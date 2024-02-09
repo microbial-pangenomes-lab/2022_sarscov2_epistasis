@@ -82,6 +82,8 @@ def get_rbd_mutated(indir, names=None):
     
         d = {}
         for clade, line in l[['clade_display', 'aaSubstitutions']].values:
+            if str(line) == 'nan':
+                continue
             for x in line.split(','):
                 k, v = x.split(':')
                 if k != 'S':

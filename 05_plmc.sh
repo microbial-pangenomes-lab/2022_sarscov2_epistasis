@@ -2,17 +2,20 @@
 set -eo pipefail
 
 fasta=$1
-odir=$2
-cores=$3
+idir=$2
+odir=$3
+cores=$4
 
-mkdir -p data/spikes
-mkdir -p out/spikes
+mkdir -p data/$idir
+mkdir -p out/$idir
 mkdir -p $odir
 
 name=$(basename $fasta .fasta.xz)
 
-xzcat $fasta | python3 src/subset_alignment.py --start 21562 --end 25384 > data/spikes/$name.fasta
+mkdir -p $odir/$name
 
-plmc/bin/plmc -c $odir/$name.EC -o $odir/$name.params --fast -m 20 -le 20.0 -lh 0.01 -a -AGCT -n $cores -f EPI_ISL_402130 data/spikes/$name.fasta
-python3 src/annotate_plmc.py data/GCF_009858895.2_ASM985889v3_genomic.gff.gz $odir/$name.EC $odir/plmc_prefilter.tsv.gz
-python3 src/plmc_filter.py $odir/plmc_prefilter.tsv.gz $odir/plmc.tsv.gz
+xzcat $fasta | python3 src/subset_alignment.py --start 21562 --end 25384 > data/$idir/$name.fasta
+
+plmc/bin/plmc -c $odir/$name.EC -o $odir/$name.params --fast -m 20 -le 20.0 -lh 0.01 -a -AGCT -n $cores -f EPI_ISL_402130 data/$idir/$name.fasta
+python3 src/annotate_plmc.py data/GCF_009858895.2_ASM985889v3_genomic.gff.gz $odir/$name.EC.gz $odir/$name/plmc_prefilter.tsv.gz --top-scoring 10000
+python3 src/plmc_filter.py $odir/$name/plmc_prefilter.tsv.gz $odir/$name/plmc.tsv.gz

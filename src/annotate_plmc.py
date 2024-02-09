@@ -115,6 +115,11 @@ def get_options():
                         action='store_true',
                         default=False,
                         help='Keep all values, not just outliers')
+    parser.add_argument('--top-scoring',
+                        default=1000,
+                        type=int,
+                        help='Use these top scoring interactions to '
+                             'define outliers %(default)d')
     return parser.parse_args()
 
 
@@ -131,11 +136,8 @@ if __name__ == "__main__":
     s['pos_b'] += 21562
     s['distance'] = abs(s['pos_b'] - s['pos_a'])
 
-    Q1, Q3 = np.quantile(s['plmc'], [0.25, 0.75])
-    t1 = Q3 + 6 * (Q3 - Q1)
-    t2 = Q3 + 9 * (Q3 - Q1)
-    t3 = Q3 + 13.5 * (Q3 - Q1)
-    t4 = Q3 + 20.25 * (Q3 - Q1)
+    v = s.sort_values('plmc').tail(options.top_scoring)['plmc']
+    t1, t2, t3, t4 = np.quantile(v, [0, 0.25, 0.50, 0.75])
 
     s.loc[s[s['plmc'] < t1].index, 'outlier'] = 0
     s.loc[s[s['plmc'] >= t1].index, 'outlier'] = 1
