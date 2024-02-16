@@ -37,7 +37,7 @@ else:
 MOI = [484, 18, 417, 439, 452, 477, 494, 501, 681]
 
 RBD_INTERESTING = {x for x in set(MOI).union(AFFINITY).union(ESCAPE)
-               if x >= 319 and x <= 540}
+                   if x >= 319 and x <= 540}
 PAIRS = {(x, y) for x, y in permutations(RBD_INTERESTING, 2)}
 ALL_PAIRS = {(x, y)
              for x, y in permutations(range(319, 541), 2)}
