@@ -1,4 +1,4 @@
-name: epistasis
+name: epistasis-invitro
 channels:
   - conda-forge
   - bioconda
@@ -6,7 +6,7 @@ channels:
 dependencies:
 - "python>=3.6,<3.11"
 - pandas
-- numpy
+- numpy<1.20
 - numba
 - treeswift
 - dendropy
@@ -14,7 +14,7 @@ dependencies:
 - nextclade
 - scipy
 - networkx
-- scikit-learn
+- "scikit-learn>=0.20.0,<1"
 - matplotlib
 - seaborn
 - jupyterlab
@@ -24,3 +24,5 @@ dependencies:
 - pip
 - pip:
     - pyfish
+    - epistasis
+    - corner
