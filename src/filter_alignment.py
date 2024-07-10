@@ -32,7 +32,7 @@ if __name__ == '__main__':
         for c in seq:
             d[c] = d.get(c, 0)
             d[c] += 1
-        if sum([v for k, v in d.items() if v != max(d.values())]) / sum(d.values()) <= args.maf:
+        if sum([v for k, v in d.items() if v != max(d.values())]) / sum(d.values()) >= args.maf:
             keep.add(i)
 
     for record in a:
