@@ -72,6 +72,10 @@ def get_options():
                         help='Annotated PLMC table')
     parser.add_argument('output',
                         help='Output table')
+    parser.add_argument('--keep-all',
+                        action='store_true',
+                        default=False,
+                        help='Keep all values, do not apply ARACNE')
     parser.add_argument('--cores',
                         default=1,
                         type=int,
@@ -95,44 +99,45 @@ def main():
 
     df = pd.read_csv(options.plmc, sep='\t')
 
-    all_v = df[['pos_a', 'pos_b', 'plmc']].values
+    if not options.keep_all:
+        all_v = df[['pos_a', 'pos_b', 'plmc']].values
 
-    pos_a = all_v[:, 0]
-    pos_b = all_v[:, 1]
-    mi = all_v[:, 2]
+        pos_a = all_v[:, 0]
+        pos_b = all_v[:, 1]
+        mi = all_v[:, 2]
 
-    del all_v
+        del all_v
 
-    prepare_aracne(pos_a, pos_b, mi)
+        prepare_aracne(pos_a, pos_b, mi)
 
-    if cores > 1:
-        pool = Pool(cores, maxtasksperchild=100)
+        if cores > 1:
+            pool = Pool(cores, maxtasksperchild=100)
 
-    iter_f = iter_pos(pos_a, pos_b, mi)
-    keep = set()
-    if cores == 1:
-        for pos in iter_f:
-            ret = aracne(*pos)
-            if ret is None:
-                continue
-            a, b, _ = ret
-            a = int(a)
-            b = int(b)
-            keep.add((a, b))
-    else:
-        while True:
-            ret = pool.starmap(aracne, itertools.islice(iter_f, chunk * cores))
-            if len(ret) == 0:
-                break
-            for x in ret:
-                if x is None:
+        iter_f = iter_pos(pos_a, pos_b, mi)
+        keep = set()
+        if cores == 1:
+            for pos in iter_f:
+                ret = aracne(*pos)
+                if ret is None:
                     continue
-                a, b, _ = x
+                a, b, _ = ret
                 a = int(a)
                 b = int(b)
                 keep.add((a, b))
+        else:
+            while True:
+                ret = pool.starmap(aracne, itertools.islice(iter_f, chunk * cores))
+                if len(ret) == 0:
+                    break
+                for x in ret:
+                    if x is None:
+                        continue
+                    a, b, _ = x
+                    a = int(a)
+                    b = int(b)
+                    keep.add((a, b))
 
-    df = df.set_index(['pos_a', 'pos_b']).loc[sorted(keep)].reset_index()
+        df = df.set_index(['pos_a', 'pos_b']).loc[sorted(keep)].reset_index()
 
     # remove distinction between a and b by duplicating the table and renaming
     m1 = df[['pos_a', 'pos_b', 'distance', 'outlier', 'plmc',
