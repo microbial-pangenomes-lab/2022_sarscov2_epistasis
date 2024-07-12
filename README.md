@@ -1,4 +1,7 @@
 # 2022_sarscov2_epistasis
+
+[![DOI](https://zenodo.org/badge/504173615.svg)](https://zenodo.org/doi/10.5281/zenodo.12731177)
+
 Estimating epistatic interactions from SARS-CoV-2 genomes, using mutual information
 
 This repository contains the code used to estimate epistatic interactions from multiple
